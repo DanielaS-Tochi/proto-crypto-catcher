@@ -2,7 +2,7 @@ import React, { useContext, useState, useRef, useEffect } from 'react';
 import { WalletContext } from '../context/WalletContext';
 
 const ConnectWallet = () => {
-    const { account, connectWallet, disconnectWallet, isConnected } = useContext(WalletContext);
+    const { account, connectWallet, disconnectWallet, changeAccount, isConnected } = useContext(WalletContext);
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -38,6 +38,15 @@ const ConnectWallet = () => {
                             <p className="text-xs text-slate-400">Connected as</p>
                             <p className="text-sm font-mono text-white truncate">{account}</p>
                         </div>
+                        <button
+                            onClick={() => {
+                                changeAccount();
+                                setShowDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors border-b border-slate-700"
+                        >
+                            Change Account
+                        </button>
                         <button
                             onClick={() => {
                                 disconnectWallet();

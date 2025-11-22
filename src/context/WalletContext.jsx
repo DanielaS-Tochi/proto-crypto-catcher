@@ -7,8 +7,10 @@ export const WalletProvider = ({ children }) => {
     const [account, setAccount] = useState(null);
     const [provider, setProvider] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [globalPoints, setGlobalPoints] = useState(0);
 
     useEffect(() => {
+        // Silent check on load - only connects if already authorized
         checkConnection();
     }, []);
 
@@ -38,6 +40,21 @@ export const WalletProvider = ({ children }) => {
         }
     };
 
+    const changeAccount = async () => {
+        if (window.ethereum) {
+            try {
+                await window.ethereum.request({
+                    method: "wallet_requestPermissions",
+                    params: [{ eth_accounts: {} }]
+                });
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                handleAccountChanged(accounts[0]);
+            } catch (error) {
+                console.error("Error changing account:", error);
+            }
+        }
+    };
+
     const handleAccountChanged = (newAccount) => {
         setAccount(newAccount);
         setIsConnected(true);
@@ -49,10 +66,20 @@ export const WalletProvider = ({ children }) => {
         setAccount(null);
         setProvider(null);
         setIsConnected(false);
+        setGlobalPoints(0);
     };
 
     return (
-        <WalletContext.Provider value={{ account, provider, isConnected, connectWallet, disconnectWallet }}>
+        <WalletContext.Provider value={{
+            account,
+            provider,
+            isConnected,
+            connectWallet,
+            disconnectWallet,
+            changeAccount,
+            globalPoints,
+            setGlobalPoints
+        }}>
             {children}
         </WalletContext.Provider>
     );

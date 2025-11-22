@@ -16,24 +16,44 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #1a1a1b;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #3747e9;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #627EEA;
 }
 
 /* Animations */
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
 }
 
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+/* Game Specific Styles */
+.game-overlay {
+  @apply absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-10 flex items-center justify-center;
+}
+
+.glass-panel {
+  @apply bg-slate-800/90 border border-slate-700 rounded-2xl shadow-2xl backdrop-blur-md;
 }
