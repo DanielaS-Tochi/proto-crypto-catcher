@@ -3,6 +3,37 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-900 text-white;
+  @apply bg-slate-900 text-white overflow-x-hidden;
   font-family: 'Inter', sans-serif;
+}
+
+/* Ethereum Gradient Background */
+.eth-gradient-bg {
+  background: radial-gradient(circle at top left, #2a2a2b 0%, #1a1a1b 100%);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #1a1a1b;
+}
+::-webkit-scrollbar-thumb {
+  background: #3747e9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #627EEA;
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }

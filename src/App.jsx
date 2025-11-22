@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { WalletProvider } from './context/WalletContext';
 import Navbar from './components/Navbar';
 import Landing from './pages/Landing';
+import Play from './pages/Play';
 
 const Placeholder = ({ title }) => (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
@@ -19,7 +20,7 @@ function App() {
                     <div className="pt-20"> {/* Add padding for fixed navbar */}
                         <Routes>
                             <Route path="/" element={<Landing />} />
-                            <Route path="/play" element={<Placeholder title="Game Area (Coming Soon)" />} />
+                            <Route path="/play" element={<Play />} />
                             <Route path="/wallet" element={<Placeholder title="Wallet Connection (Coming Soon)" />} />
                             <Route path="/lessons" element={<Placeholder title="Lessons (Coming Soon)" />} />
                         </Routes>

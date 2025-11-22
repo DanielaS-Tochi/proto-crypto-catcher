@@ -45,8 +45,14 @@ export const WalletProvider = ({ children }) => {
         setProvider(newProvider);
     };
 
+    const disconnectWallet = () => {
+        setAccount(null);
+        setProvider(null);
+        setIsConnected(false);
+    };
+
     return (
-        <WalletContext.Provider value={{ account, provider, isConnected, connectWallet }}>
+        <WalletContext.Provider value={{ account, provider, isConnected, connectWallet, disconnectWallet }}>
             {children}
         </WalletContext.Provider>
     );
