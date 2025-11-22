@@ -4,6 +4,7 @@ import { WalletProvider } from './context/WalletContext';
 import Navbar from './components/Navbar';
 import Landing from './pages/Landing';
 import Play from './pages/Play';
+import Lessons from './pages/Lessons';
 
 const Placeholder = ({ title }) => (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
@@ -22,7 +23,7 @@ function App() {
                             <Route path="/" element={<Landing />} />
                             <Route path="/play" element={<Play />} />
                             <Route path="/wallet" element={<Placeholder title="Wallet Connection (Coming Soon)" />} />
-                            <Route path="/lessons" element={<Placeholder title="Lessons (Coming Soon)" />} />
+                            <Route path="/lessons" element={<Lessons />} />
                         </Routes>
                     </div>
                 </div>

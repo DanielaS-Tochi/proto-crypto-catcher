@@ -7,7 +7,7 @@ const Play = () => {
     const { isConnected, setGlobalPoints, account } = useContext(WalletContext);
 
     // Game State
-    const [gameState, setGameState] = useState('idle'); // idle, playing, paused, gameOver
+    const [gameState, setGameState] = useState('idle'); // idle, playing, paused, gameOver, firstCatch
     const [score, setScore] = useState(0);
     const [items, setItems] = useState([]);
     const [feedback, setFeedback] = useState(null);
@@ -17,7 +17,12 @@ const Play = () => {
     // V3 Features
     const [username, setUsername] = useState('');
     const [combo, setCombo] = useState(0);
-    const [difficulty, setDifficulty] = useState(1); // Multiplier for speed/spawn
+    const [difficulty, setDifficulty] = useState(1);
+
+    // V4 Features
+    const [timeLeft, setTimeLeft] = useState(60);
+    const [discoveredItems, setDiscoveredItems] = useState([]);
+    const [firstCatchItem, setFirstCatchItem] = useState(null);
 
     // Refs
     const requestRef = useRef();
@@ -31,13 +36,32 @@ const Play = () => {
 
         const savedName = localStorage.getItem('cryptoCatcherUsername');
         if (savedName) setUsername(savedName);
+
+        const savedDiscovered = localStorage.getItem('cryptoCatcherDiscovered');
+        if (savedDiscovered) setDiscoveredItems(JSON.parse(savedDiscovered));
     }, []);
 
-    // Dynamic Difficulty & Combo Logic
+    // Timer Logic
     useEffect(() => {
-        // Increase difficulty every 100 points
+        let timer;
+        if (gameState === 'playing' && timeLeft > 0) {
+            timer = setInterval(() => {
+                setTimeLeft(prev => {
+                    if (prev <= 1) {
+                        endGame();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [gameState, timeLeft]);
+
+    // Dynamic Difficulty
+    useEffect(() => {
         const newDifficulty = 1 + Math.floor(score / 100) * 0.1;
-        setDifficulty(Math.min(newDifficulty, 3)); // Cap at 3x speed
+        setDifficulty(Math.min(newDifficulty, 3));
     }, [score]);
 
     // Game Loop
@@ -47,14 +71,12 @@ const Play = () => {
         if (lastTimeRef.current != undefined) {
             const deltaTime = time - lastTimeRef.current;
 
-            // Spawn Items (Rate increases with difficulty)
             spawnTimerRef.current += deltaTime * difficulty;
             if (spawnTimerRef.current > 1000) {
                 spawnItem();
                 spawnTimerRef.current = 0;
             }
 
-            // Move Items (Speed increases with difficulty)
             setItems(prevItems => {
                 return prevItems
                     .map(item => ({ ...item, y: item.y + (item.speed * difficulty * deltaTime / 16) }))
@@ -92,41 +114,52 @@ const Play = () => {
         e.stopPropagation();
         if (gameState !== 'playing') return;
 
-        let points = item.points;
-
-        if (item.type === 'good') {
-            // Combo Logic
-            const newCombo = combo + 1;
-            setCombo(newCombo);
-
-            // Apply Combo Multiplier (e.g., 5x combo = 1.5x points)
-            const multiplier = 1 + (Math.floor(newCombo / 5) * 0.1);
-            points = Math.ceil(points * multiplier);
-
-            setFeedback({
-                text: `${item.info} ${multiplier > 1 ? `(x${multiplier.toFixed(1)})` : ''}`,
-                type: 'good',
-                x: e.clientX,
-                y: e.clientY
-            });
-        } else {
-            // Reset Combo on bad item
-            setCombo(0);
-            setFeedback({
-                text: item.info,
-                type: 'bad',
-                x: e.clientX,
-                y: e.clientY
-            });
+        // First Catch Logic
+        if (!discoveredItems.includes(item.id)) {
+            setGameState('firstCatch');
+            setFirstCatchItem(item);
+            const newDiscovered = [...discoveredItems, item.id];
+            setDiscoveredItems(newDiscovered);
+            localStorage.setItem('cryptoCatcherDiscovered', JSON.stringify(newDiscovered));
+            return;
         }
 
-        // Update Score
+        processCatch(item, e.clientX, e.clientY);
+    };
+
+    const processCatch = (item, x, y) => {
+        let points = item.points;
+        let feedbackText = item.info;
+        let feedbackType = item.type;
+
+        if (item.type === 'good') {
+            const newCombo = combo + 1;
+            setCombo(newCombo);
+            const multiplier = 1 + (Math.floor(newCombo / 5) * 0.1);
+            points = Math.ceil(points * multiplier);
+            if (multiplier > 1) feedbackText += ` (x${multiplier.toFixed(1)})`;
+        } else {
+            setCombo(0);
+        }
+
         const newScore = score + points;
         setScore(newScore);
         setGlobalPoints(prev => Math.max(0, prev + points));
 
-        setTimeout(() => setFeedback(null), 2000);
+        setFeedback({ text: feedbackText, type: feedbackType, x, y });
+        setTimeout(() => setFeedback(null), 4000); // Extended duration
+
         setItems(prev => prev.filter(i => i.instanceId !== item.instanceId));
+    };
+
+    const resumeFromFirstCatch = () => {
+        if (firstCatchItem) {
+            // Process the catch that triggered the pause
+            // We don't have exact coordinates anymore, so center it or use a default
+            processCatch(firstCatchItem, window.innerWidth / 2, window.innerHeight / 2);
+            setFirstCatchItem(null);
+            setGameState('playing');
+        }
     };
 
     const startGame = () => {
@@ -139,8 +172,15 @@ const Play = () => {
         setGlobalPoints(0);
         setCombo(0);
         setDifficulty(1);
+        setTimeLeft(60);
         setItems([]);
         setGameState('playing');
+    };
+
+    const endGame = () => {
+        setGameState('gameOver');
+        saveHighScore();
+        setItems([]);
     };
 
     const pauseGame = () => setGameState(prev => prev === 'paused' ? 'playing' : 'paused');
@@ -191,6 +231,13 @@ const Play = () => {
                 )}
             </div>
 
+            {/* Timer */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+                <div className={`text-3xl font-mono font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                    {timeLeft}s
+                </div>
+            </div>
+
             {/* Controls */}
             <div className="absolute top-4 right-4 z-20 flex gap-2">
                 {gameState === 'idle' && (
@@ -213,10 +260,10 @@ const Play = () => {
             {/* Feedback Toast */}
             {feedback && (
                 <div
-                    className={`absolute z-30 px-4 py-2 rounded-lg shadow-xl text-sm font-bold animate-float pointer-events-none
-                        ${feedback.type === 'good' ? 'bg-slate-800 text-green-400 border border-green-500' : 'bg-slate-800 text-red-400 border border-red-500'}
+                    className={`absolute z-30 px-6 py-3 rounded-xl shadow-2xl text-base font-bold animate-float pointer-events-none
+                        ${feedback.type === 'good' ? 'bg-slate-800 text-green-400 border-2 border-green-500' : 'bg-slate-800 text-red-400 border-2 border-red-500'}
                     `}
-                    style={{ top: feedback.y - 60, left: feedback.x }}
+                    style={{ top: feedback.y - 80, left: feedback.x }}
                 >
                     {feedback.text}
                 </div>
@@ -238,6 +285,46 @@ const Play = () => {
                 </div>
             ))}
 
+            {/* First Catch Overlay */}
+            {gameState === 'firstCatch' && firstCatchItem && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 backdrop-blur-md z-50">
+                    <div className="bg-slate-800 p-8 rounded-2xl border-2 border-[#627EEA] shadow-2xl max-w-md text-center animate-bounce-in">
+                        <div className="text-6xl mb-4">{firstCatchItem.symbol}</div>
+                        <h2 className="text-3xl font-bold text-white mb-2">New Discovery!</h2>
+                        <h3 className={`text-xl font-bold mb-4 ${firstCatchItem.type === 'good' ? 'text-green-400' : 'text-red-400'}`}>
+                            {firstCatchItem.name}
+                        </h3>
+                        <p className="text-slate-300 text-lg mb-8 leading-relaxed">
+                            {firstCatchItem.info}
+                        </p>
+                        <button
+                            onClick={resumeFromFirstCatch}
+                            className="px-8 py-3 bg-[#627EEA] hover:bg-[#536bce] text-white rounded-full font-bold shadow-lg transform hover:scale-105 transition-all"
+                        >
+                            Got it! (+{firstCatchItem.points} pts)
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Game Over Screen */}
+            {gameState === 'gameOver' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 backdrop-blur-md z-40">
+                    <div className="text-center">
+                        <h2 className="text-5xl font-bold text-white mb-4">Time's Up!</h2>
+                        <p className="text-2xl text-slate-300 mb-8">Final Score: <span className="text-[#627EEA] font-bold">{score}</span></p>
+                        <div className="flex gap-4 justify-center">
+                            <button onClick={startGame} className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg transform hover:scale-105 transition-all">
+                                Play Again
+                            </button>
+                            <button onClick={() => setGameState('idle')} className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-full font-bold shadow-lg">
+                                Menu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Idle / Ranking Screen */}
             {gameState === 'idle' && (
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-10">
@@ -256,7 +343,7 @@ const Play = () => {
                         </div>
 
                         <button onClick={startGame} className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105 mb-8">
-                            START GAME
+                            START GAME (60s)
                         </button>
 
                         <div className="border-t border-slate-700 pt-6">
