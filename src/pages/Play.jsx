@@ -342,8 +342,19 @@ const Play = () => {
                             />
                         </div>
 
-                        <button onClick={startGame} className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105 mb-8">
+                        <button onClick={startGame} className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105 mb-4">
                             START GAME (60s)
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                localStorage.removeItem('cryptoCatcherDiscovered');
+                                setDiscoveredItems([]);
+                                alert("Learning progress reset! You will see explanations again.");
+                            }}
+                            className="text-slate-500 hover:text-slate-300 text-sm underline mb-8"
+                        >
+                            Reset Learning Progress
                         </button>
 
                         <div className="border-t border-slate-700 pt-6">

@@ -22,6 +22,13 @@ const Lessons = () => {
             link: "https://ethereum.org",
             color: "from-purple-400 to-indigo-600",
             icon: "💎"
+        },
+        {
+            title: "Solidity by Example",
+            description: "Learn Solidity with simple examples. A great reference for syntax and patterns.",
+            link: "https://solidity-by-example.org",
+            color: "from-slate-400 to-slate-600",
+            icon: "💻"
         }
     ];
 
