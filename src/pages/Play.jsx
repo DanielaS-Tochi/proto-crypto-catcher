@@ -1,27 +1,44 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { WalletContext } from '../context/WalletContext';
 import { GAME_ITEMS } from '../data/gameItems';
+import Instructions from '../components/Instructions';
 
 const Play = () => {
-    const { isConnected, setGlobalPoints } = useContext(WalletContext);
+    const { isConnected, setGlobalPoints, account } = useContext(WalletContext);
 
     // Game State
     const [gameState, setGameState] = useState('idle'); // idle, playing, paused, gameOver
     const [score, setScore] = useState(0);
     const [items, setItems] = useState([]);
-    const [feedback, setFeedback] = useState(null); // { text, type, x, y }
+    const [feedback, setFeedback] = useState(null);
     const [highScores, setHighScores] = useState([]);
+    const [showInstructions, setShowInstructions] = useState(false);
 
-    // Refs for game loop
+    // V3 Features
+    const [username, setUsername] = useState('');
+    const [combo, setCombo] = useState(0);
+    const [difficulty, setDifficulty] = useState(1); // Multiplier for speed/spawn
+
+    // Refs
     const requestRef = useRef();
     const lastTimeRef = useRef();
     const spawnTimerRef = useRef(0);
 
-    // Load High Scores
+    // Load High Scores & Username
     useEffect(() => {
-        const saved = localStorage.getItem('cryptoCatcherHighScores');
-        if (saved) setHighScores(JSON.parse(saved));
+        const savedScores = localStorage.getItem('cryptoCatcherHighScores');
+        if (savedScores) setHighScores(JSON.parse(savedScores));
+
+        const savedName = localStorage.getItem('cryptoCatcherUsername');
+        if (savedName) setUsername(savedName);
     }, []);
+
+    // Dynamic Difficulty & Combo Logic
+    useEffect(() => {
+        // Increase difficulty every 100 points
+        const newDifficulty = 1 + Math.floor(score / 100) * 0.1;
+        setDifficulty(Math.min(newDifficulty, 3)); // Cap at 3x speed
+    }, [score]);
 
     // Game Loop
     const animate = (time) => {
@@ -30,18 +47,18 @@ const Play = () => {
         if (lastTimeRef.current != undefined) {
             const deltaTime = time - lastTimeRef.current;
 
-            // Spawn Items
-            spawnTimerRef.current += deltaTime;
-            if (spawnTimerRef.current > 1000) { // Spawn every 1s
+            // Spawn Items (Rate increases with difficulty)
+            spawnTimerRef.current += deltaTime * difficulty;
+            if (spawnTimerRef.current > 1000) {
                 spawnItem();
                 spawnTimerRef.current = 0;
             }
 
-            // Move Items
+            // Move Items (Speed increases with difficulty)
             setItems(prevItems => {
                 return prevItems
-                    .map(item => ({ ...item, y: item.y + (item.speed * deltaTime / 16) }))
-                    .filter(item => item.y < 100); // Remove if off screen
+                    .map(item => ({ ...item, y: item.y + (item.speed * difficulty * deltaTime / 16) }))
+                    .filter(item => item.y < 100);
             });
         }
 
@@ -64,7 +81,7 @@ const Play = () => {
         const newItem = {
             ...randomItem,
             instanceId: Math.random(),
-            x: Math.random() * 90 + 5, // 5-95%
+            x: Math.random() * 90 + 5,
             y: -10,
             speed: Math.random() * 0.5 + 0.2
         };
@@ -75,27 +92,53 @@ const Play = () => {
         e.stopPropagation();
         if (gameState !== 'playing') return;
 
+        let points = item.points;
+
+        if (item.type === 'good') {
+            // Combo Logic
+            const newCombo = combo + 1;
+            setCombo(newCombo);
+
+            // Apply Combo Multiplier (e.g., 5x combo = 1.5x points)
+            const multiplier = 1 + (Math.floor(newCombo / 5) * 0.1);
+            points = Math.ceil(points * multiplier);
+
+            setFeedback({
+                text: `${item.info} ${multiplier > 1 ? `(x${multiplier.toFixed(1)})` : ''}`,
+                type: 'good',
+                x: e.clientX,
+                y: e.clientY
+            });
+        } else {
+            // Reset Combo on bad item
+            setCombo(0);
+            setFeedback({
+                text: item.info,
+                type: 'bad',
+                x: e.clientX,
+                y: e.clientY
+            });
+        }
+
         // Update Score
-        const newScore = score + item.points;
+        const newScore = score + points;
         setScore(newScore);
-        setGlobalPoints(prev => Math.max(0, prev + item.points));
+        setGlobalPoints(prev => Math.max(0, prev + points));
 
-        // Show Feedback
-        setFeedback({
-            text: item.info,
-            type: item.type,
-            x: e.clientX,
-            y: e.clientY
-        });
         setTimeout(() => setFeedback(null), 2000);
-
-        // Remove Item
         setItems(prev => prev.filter(i => i.instanceId !== item.instanceId));
     };
 
     const startGame = () => {
+        if (!username.trim()) {
+            alert("Please enter a username!");
+            return;
+        }
+        localStorage.setItem('cryptoCatcherUsername', username);
         setScore(0);
         setGlobalPoints(0);
+        setCombo(0);
+        setDifficulty(1);
         setItems([]);
         setGameState('playing');
     };
@@ -110,7 +153,12 @@ const Play = () => {
 
     const saveHighScore = () => {
         if (score > 0) {
-            const newScores = [...highScores, { score, date: new Date().toLocaleDateString() }]
+            const newEntry = {
+                name: username || account.substring(0, 6),
+                score,
+                date: new Date().toLocaleDateString()
+            };
+            const newScores = [...highScores, newEntry]
                 .sort((a, b) => b.score - a.score)
                 .slice(0, 5);
             setHighScores(newScores);
@@ -133,16 +181,21 @@ const Play = () => {
 
     return (
         <div className="relative w-full h-[calc(100vh-80px)] overflow-hidden bg-slate-900">
-            {/* Game UI Overlay */}
+            {/* UI Overlay */}
             <div className="absolute top-4 left-4 z-20">
                 <h2 className="text-3xl font-bold text-white drop-shadow-md">Score: <span className="text-[#627EEA]">{score}</span></h2>
+                {combo > 1 && (
+                    <div className="text-yellow-400 font-bold text-xl animate-pulse">
+                        Combo x{combo}!
+                    </div>
+                )}
             </div>
 
             {/* Controls */}
             <div className="absolute top-4 right-4 z-20 flex gap-2">
                 {gameState === 'idle' && (
-                    <button onClick={startGame} className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105">
-                        START GAME
+                    <button onClick={() => setShowInstructions(true)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-full font-bold shadow-lg">
+                        ❓ Rules
                     </button>
                 )}
                 {(gameState === 'playing' || gameState === 'paused') && (
@@ -185,27 +238,51 @@ const Play = () => {
                 </div>
             ))}
 
-            {/* Ranking / Idle Screen */}
+            {/* Idle / Ranking Screen */}
             {gameState === 'idle' && (
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-10">
-                    <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl max-w-md w-full">
-                        <h3 className="text-2xl font-bold text-white mb-6 text-center">🏆 High Scores</h3>
-                        <div className="space-y-3">
-                            {highScores.length === 0 ? (
-                                <p className="text-slate-500 text-center">No scores yet. Start playing!</p>
-                            ) : (
-                                highScores.map((entry, i) => (
-                                    <div key={i} className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
-                                        <span className="text-slate-300">#{i + 1}</span>
-                                        <span className="text-white font-mono font-bold">{entry.score}</span>
-                                        <span className="text-slate-500 text-xs">{entry.date}</span>
-                                    </div>
-                                ))
-                            )}
+                    <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl max-w-md w-full text-center">
+                        <h3 className="text-2xl font-bold text-white mb-6">Ready to Catch?</h3>
+
+                        <div className="mb-6">
+                            <label className="block text-slate-400 text-sm mb-2">Enter your Username</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="CryptoMaster"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-[#627EEA]"
+                            />
+                        </div>
+
+                        <button onClick={startGame} className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105 mb-8">
+                            START GAME
+                        </button>
+
+                        <div className="border-t border-slate-700 pt-6">
+                            <h4 className="text-lg font-bold text-slate-300 mb-4">🏆 High Scores</h4>
+                            <div className="space-y-2">
+                                {highScores.length === 0 ? (
+                                    <p className="text-slate-500 text-sm">No scores yet.</p>
+                                ) : (
+                                    highScores.map((entry, i) => (
+                                        <div key={i} className="flex justify-between items-center p-2 bg-slate-700/30 rounded">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-400 text-sm">#{i + 1}</span>
+                                                <span className="text-white font-bold text-sm">{entry.name}</span>
+                                            </div>
+                                            <span className="text-[#627EEA] font-mono font-bold">{entry.score}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Instructions Modal */}
+            {showInstructions && <Instructions onClose={() => setShowInstructions(false)} />}
 
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_50%,rgba(98,126,234,0.1),transparent_70%)]"></div>
         </div>
