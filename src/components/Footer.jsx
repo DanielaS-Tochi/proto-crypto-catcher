@@ -50,11 +50,21 @@ const Footer = () => {
     ];
 
     return (
-        <footer className="w-full bg-slate-900 border-t border-slate-800 py-6 mt-auto">
+        <footer className="w-full bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700 py-8 mt-auto">
             <div className="max-w-6xl mx-auto px-4">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                {/* Project Name */}
+                <div className="text-center mb-6">
+                    <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                        Crypto Catcher
+                    </h3>
                     <p className="text-slate-400 text-sm">
-                        © 2025 Daniela Silvana Tochi
+                        Learn Ethereum while catching crypto assets
+                    </p>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-700 pt-6">
+                    <p className="text-slate-400 text-sm">
+                        © 2025 <span className="text-white font-medium">Daniela Silvana Tochi</span>
                     </p>
 
                     <div className="flex items-center gap-4">
@@ -64,13 +74,18 @@ const Footer = () => {
                                 href={link.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-slate-400 hover:text-white transition-colors"
+                                className="text-slate-400 hover:text-white transition-all hover:scale-110 transform"
                                 aria-label={link.name}
+                                title={link.name}
                             >
                                 {link.icon}
                             </a>
                         ))}
                     </div>
+
+                    <p className="text-slate-500 text-xs">
+                        Built with ❤️ for Web3 education
+                    </p>
                 </div>
             </div>
         </footer>
