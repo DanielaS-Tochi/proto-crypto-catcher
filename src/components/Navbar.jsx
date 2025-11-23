@@ -11,8 +11,9 @@ const Navbar = () => {
                     Crypto Catcher
                 </Link>
                 <div className="hidden md:flex items-center gap-6 text-slate-400 font-medium">
-                    <Link to="/lessons" className="hover:text-white transition-colors">Lessons</Link>
                     <Link to="/play" className="hover:text-white transition-colors">Play</Link>
+                    <Link to="/rules" className="hover:text-white transition-colors">Rules</Link>
+                    <Link to="/lessons" className="hover:text-white transition-colors">Lessons</Link>
                 </div>
             </div>
 

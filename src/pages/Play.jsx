@@ -39,9 +39,6 @@ const Play = () => {
         const savedScores = localStorage.getItem('cryptoCatcherHighScores');
         if (savedScores) setHighScores(JSON.parse(savedScores));
 
-        const savedName = localStorage.getItem('cryptoCatcherUsername');
-        if (savedName) setUsername(savedName);
-
         const savedDiscovered = localStorage.getItem('cryptoCatcherDiscovered');
         if (savedDiscovered) setDiscoveredItems(JSON.parse(savedDiscovered));
     }, []);
@@ -225,6 +222,7 @@ const Play = () => {
         setGameState('idle');
         saveHighScore();
         setItems([]);
+        setUsername(''); // Clear username for next game
     };
 
     const toggleMute = () => {
@@ -235,7 +233,7 @@ const Play = () => {
     const saveHighScore = () => {
         if (score > 0) {
             const newEntry = {
-                name: username || account.substring(0, 6),
+                name: username || (account ? account.substring(0, 6) : "Guest"),
                 score,
                 date: new Date().toLocaleDateString()
             };
@@ -246,19 +244,6 @@ const Play = () => {
             localStorage.setItem('cryptoCatcherHighScores', JSON.stringify(newScores));
         }
     };
-
-    if (!isConnected) {
-        return (
-            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
-                <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                    Connect Wallet to Play
-                </h1>
-                <p className="text-slate-400 max-w-md">
-                    You need an Ethereum wallet to access the Crypto Catcher game and earn on-chain points.
-                </p>
-            </div>
-        );
-    }
 
     return (
         <div className="relative w-full h-[calc(100vh-80px)] overflow-hidden bg-slate-900">
@@ -277,12 +262,28 @@ const Play = () => {
                 )}
             </div>
 
-            {/* Timer */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-                <div className={`text-3xl font-mono font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                    {timeLeft}s
+            {/* Impressive Timer - Only During Gameplay */}
+            {(gameState === 'playing' || gameState === 'paused') && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+                    <div className={`px-8 py-4 rounded-2xl backdrop-blur-xl border-2 transition-all duration-300 shadow-2xl ${timeLeft < 10
+                        ? 'bg-gradient-to-r from-red-500/30 to-orange-500/30 border-red-400 shadow-red-500/50 animate-pulse'
+                        : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/50 shadow-blue-500/30'
+                        }`}>
+                        <div className="flex items-center gap-3">
+                            <svg className={`w-7 h-7 ${timeLeft < 10 ? 'text-red-300' : 'text-blue-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="flex flex-col">
+                                <span className="text-xs text-slate-300 font-medium uppercase tracking-wider">Time Left</span>
+                                <span className={`text-3xl font-black font-mono ${timeLeft < 10 ? 'text-red-200' : 'text-white'
+                                    }`}>
+                                    {timeLeft}s
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Controls */}
             <div className="absolute top-4 right-4 z-20 flex items-center gap-12">
@@ -376,11 +377,12 @@ const Play = () => {
                         <h3 className="text-xl font-bold text-white mb-4">Ready to Catch?</h3>
 
                         <div className="mb-4">
+
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="Username"
+                                placeholder="Enter your username"
                                 className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-[#627EEA]"
                             />
                         </div>
