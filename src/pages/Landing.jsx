@@ -10,7 +10,7 @@ const Landing = () => {
             </div>
 
             <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">
-                Proto Crypto Catcher
+                Crypto Catcher
             </h1>
 
             <p className="text-xl text-gray-300 mb-12 max-w-md text-center">
