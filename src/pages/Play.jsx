@@ -2,12 +2,15 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { WalletContext } from '../context/WalletContext';
 import { GAME_ITEMS } from '../data/gameItems';
 import Instructions from '../components/Instructions';
+import HighScores from '../components/HighScores';
+import GameControls from '../components/GameControls';
+import { soundManager } from '../utils/SoundManager';
 
 const Play = () => {
     const { isConnected, setGlobalPoints, account } = useContext(WalletContext);
 
     // Game State
-    const [gameState, setGameState] = useState('idle'); // idle, playing, paused, gameOver, firstCatch
+    const [gameState, setGameState] = useState('idle');
     const [score, setScore] = useState(0);
     const [items, setItems] = useState([]);
     const [feedback, setFeedback] = useState(null);
@@ -23,6 +26,8 @@ const Play = () => {
     const [timeLeft, setTimeLeft] = useState(60);
     const [discoveredItems, setDiscoveredItems] = useState([]);
     const [firstCatchItem, setFirstCatchItem] = useState(null);
+    const [levelUp, setLevelUp] = useState(false);
+    const [isMuted, setIsMuted] = useState(soundManager.muted);
 
     // Refs
     const requestRef = useRef();
@@ -41,6 +46,23 @@ const Play = () => {
         if (savedDiscovered) setDiscoveredItems(JSON.parse(savedDiscovered));
     }, []);
 
+    // Keyboard Controls
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.code === 'Space') {
+                if (gameState === 'playing' || gameState === 'paused') {
+                    pauseGame();
+                }
+            } else if (e.code === 'Enter') {
+                if (gameState === 'idle' || gameState === 'gameOver') {
+                    startGame();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [gameState, username]);
+
     // Timer Logic
     useEffect(() => {
         let timer;
@@ -58,10 +80,15 @@ const Play = () => {
         return () => clearInterval(timer);
     }, [gameState, timeLeft]);
 
-    // Dynamic Difficulty
+    // Dynamic Difficulty & Level Up
     useEffect(() => {
         const newDifficulty = 1 + Math.floor(score / 100) * 0.1;
-        setDifficulty(Math.min(newDifficulty, 3));
+        if (newDifficulty > difficulty) {
+            setDifficulty(Math.min(newDifficulty, 3));
+            setLevelUp(true);
+            soundManager.playLevelUp();
+            setTimeout(() => setLevelUp(false), 2000);
+        }
     }, [score]);
 
     // Game Loop
@@ -133,12 +160,14 @@ const Play = () => {
         let feedbackType = item.type;
 
         if (item.type === 'good') {
+            soundManager.playCatchGood();
             const newCombo = combo + 1;
             setCombo(newCombo);
             const multiplier = 1 + (Math.floor(newCombo / 5) * 0.1);
             points = Math.ceil(points * multiplier);
             if (multiplier > 1) feedbackText += ` (x${multiplier.toFixed(1)})`;
         } else {
+            soundManager.playCatchBad();
             setCombo(0);
         }
 
@@ -147,15 +176,13 @@ const Play = () => {
         setGlobalPoints(prev => Math.max(0, prev + points));
 
         setFeedback({ text: feedbackText, type: feedbackType, x, y });
-        setTimeout(() => setFeedback(null), 4000); // Extended duration
+        setTimeout(() => setFeedback(null), 4000);
 
         setItems(prev => prev.filter(i => i.instanceId !== item.instanceId));
     };
 
     const resumeFromFirstCatch = () => {
         if (firstCatchItem) {
-            // Process the catch that triggered the pause
-            // We don't have exact coordinates anymore, so center it or use a default
             processCatch(firstCatchItem, window.innerWidth / 2, window.innerHeight / 2);
             setFirstCatchItem(null);
             setGameState('playing');
@@ -179,16 +206,30 @@ const Play = () => {
 
     const endGame = () => {
         setGameState('gameOver');
+        soundManager.playGameOver();
         saveHighScore();
         setItems([]);
     };
 
-    const pauseGame = () => setGameState(prev => prev === 'paused' ? 'playing' : 'paused');
+    const pauseGame = () => {
+        setGameState(prev => {
+            if (prev === 'paused') {
+                return 'playing';
+            } else {
+                return 'paused';
+            }
+        });
+    };
 
     const stopGame = () => {
         setGameState('idle');
         saveHighScore();
         setItems([]);
+    };
+
+    const toggleMute = () => {
+        const muted = soundManager.toggleMute();
+        setIsMuted(muted);
     };
 
     const saveHighScore = () => {
@@ -222,39 +263,42 @@ const Play = () => {
     return (
         <div className="relative w-full h-[calc(100vh-80px)] overflow-hidden bg-slate-900">
             {/* UI Overlay */}
-            <div className="absolute top-4 left-4 z-20">
+            <div className="absolute top-4 left-4 z-20 pointer-events-none">
                 <h2 className="text-3xl font-bold text-white drop-shadow-md">Score: <span className="text-[#627EEA]">{score}</span></h2>
                 {combo > 1 && (
                     <div className="text-yellow-400 font-bold text-xl animate-pulse">
                         Combo x{combo}!
                     </div>
                 )}
+                {levelUp && (
+                    <div className="text-green-400 font-bold text-2xl animate-bounce mt-2">
+                        LEVEL UP! 🚀
+                    </div>
+                )}
             </div>
 
             {/* Timer */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
                 <div className={`text-3xl font-mono font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                     {timeLeft}s
                 </div>
             </div>
 
             {/* Controls */}
-            <div className="absolute top-4 right-4 z-20 flex gap-2">
-                {gameState === 'idle' && (
-                    <button onClick={() => setShowInstructions(true)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-full font-bold shadow-lg">
-                        ❓ Rules
-                    </button>
-                )}
-                {(gameState === 'playing' || gameState === 'paused') && (
-                    <>
-                        <button onClick={pauseGame} className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full font-bold shadow-lg">
-                            {gameState === 'paused' ? 'RESUME' : 'PAUSE'}
-                        </button>
-                        <button onClick={stopGame} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full font-bold shadow-lg">
-                            STOP
-                        </button>
-                    </>
-                )}
+            <div className="absolute top-4 right-4 z-20 flex items-center gap-12">
+                <button
+                    onClick={toggleMute}
+                    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105"
+                >
+                    {isMuted ? '🔇' : '🔊'}
+                </button>
+                <GameControls
+                    gameState={gameState}
+                    onStart={startGame}
+                    onPause={pauseGame}
+                    onStop={stopGame}
+                    onShowRules={() => setShowInstructions(true)}
+                />
             </div>
 
             {/* Feedback Toast */}
@@ -287,7 +331,7 @@ const Play = () => {
 
             {/* First Catch Overlay */}
             {gameState === 'firstCatch' && firstCatchItem && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 backdrop-blur-md z-50">
+                <div className="fixed inset-0 flex items-center justify-center bg-slate-900/90 backdrop-blur-md z-[200] p-4">
                     <div className="bg-slate-800 p-8 rounded-2xl border-2 border-[#627EEA] shadow-2xl max-w-md text-center animate-bounce-in">
                         <div className="text-6xl mb-4">{firstCatchItem.symbol}</div>
                         <h2 className="text-3xl font-bold text-white mb-2">New Discovery!</h2>
@@ -309,7 +353,7 @@ const Play = () => {
 
             {/* Game Over Screen */}
             {gameState === 'gameOver' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 backdrop-blur-md z-40">
+                <div className="fixed inset-0 flex items-center justify-center bg-slate-900/90 backdrop-blur-md z-40 p-4">
                     <div className="text-center">
                         <h2 className="text-5xl font-bold text-white mb-4">Time's Up!</h2>
                         <p className="text-2xl text-slate-300 mb-8">Final Score: <span className="text-[#627EEA] font-bold">{score}</span></p>
@@ -325,56 +369,38 @@ const Play = () => {
                 </div>
             )}
 
-            {/* Idle / Ranking Screen */}
+            {/* Idle / Ranking Screen (Compact & Fixed) */}
             {gameState === 'idle' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-10">
-                    <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl max-w-md w-full text-center">
-                        <h3 className="text-2xl font-bold text-white mb-6">Ready to Catch?</h3>
+                <div className="fixed inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-10 p-4 pt-20 overflow-y-auto">
+                    <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl max-w-sm w-full text-center my-auto">
+                        <h3 className="text-xl font-bold text-white mb-4">Ready to Catch?</h3>
 
-                        <div className="mb-6">
-                            <label className="block text-slate-400 text-sm mb-2">Enter your Username</label>
+                        <div className="mb-4">
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="CryptoMaster"
+                                placeholder="Username"
                                 className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-[#627EEA]"
                             />
                         </div>
 
                         <button onClick={startGame} className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105 mb-4">
-                            START GAME (60s)
+                            START GAME
                         </button>
 
                         <button
                             onClick={() => {
                                 localStorage.removeItem('cryptoCatcherDiscovered');
                                 setDiscoveredItems([]);
-                                alert("Learning progress reset! You will see explanations again.");
+                                alert("Learning progress reset!");
                             }}
-                            className="text-slate-500 hover:text-slate-300 text-sm underline mb-8"
+                            className="text-slate-500 hover:text-slate-300 text-xs underline mb-4 block"
                         >
-                            Reset Learning Progress
+                            Reset Learning
                         </button>
 
-                        <div className="border-t border-slate-700 pt-6">
-                            <h4 className="text-lg font-bold text-slate-300 mb-4">🏆 High Scores</h4>
-                            <div className="space-y-2">
-                                {highScores.length === 0 ? (
-                                    <p className="text-slate-500 text-sm">No scores yet.</p>
-                                ) : (
-                                    highScores.map((entry, i) => (
-                                        <div key={i} className="flex justify-between items-center p-2 bg-slate-700/30 rounded">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-slate-400 text-sm">#{i + 1}</span>
-                                                <span className="text-white font-bold text-sm">{entry.name}</span>
-                                            </div>
-                                            <span className="text-[#627EEA] font-mono font-bold">{entry.score}</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                        <HighScores scores={highScores} />
                     </div>
                 </div>
             )}

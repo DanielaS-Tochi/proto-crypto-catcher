@@ -33,35 +33,35 @@ const Lessons = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-900 pt-24 px-4 pb-12">
-            <div className="max-w-4xl mx-auto">
-                <h1 className="text-4xl font-bold text-center mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+        <div className="h-[calc(100vh-80px)] bg-slate-900 flex flex-col items-center justify-center px-4 overflow-hidden">
+            <div className="max-w-6xl w-full">
+                <h1 className="text-3xl font-bold text-center mb-3 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                     Start Learning
                 </h1>
-                <p className="text-slate-400 text-center mb-12 max-w-2xl mx-auto">
+                <p className="text-slate-400 text-center mb-8 max-w-2xl mx-auto text-sm">
                     Ready to go deeper? Explore these top-tier resources to master Solidity, Smart Contracts, and Web3 development.
                 </p>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {resources.map((res, index) => (
                         <a
                             key={index}
                             href={res.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group relative overflow-hidden bg-slate-800 border border-slate-700 rounded-2xl p-6 hover:border-slate-500 transition-all hover:-translate-y-1 hover:shadow-2xl"
+                            className="group relative overflow-hidden bg-slate-800 border border-slate-700 rounded-xl p-4 hover:border-slate-500 transition-all hover:-translate-y-1 hover:shadow-xl"
                         >
-                            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${res.color} opacity-10 rounded-bl-full group-hover:opacity-20 transition-opacity`}></div>
+                            <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-br ${res.color} opacity-10 rounded-bl-full group-hover:opacity-20 transition-opacity`}></div>
 
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="text-4xl">{res.icon}</div>
-                                <div className="text-slate-500 group-hover:text-white transition-colors">↗</div>
+                            <div className="flex items-start justify-between mb-2">
+                                <div className="text-2xl">{res.icon}</div>
+                                <div className="text-slate-500 group-hover:text-white transition-colors text-sm">↗</div>
                             </div>
 
-                            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                            <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">
                                 {res.title}
                             </h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">
+                            <p className="text-slate-400 text-xs leading-relaxed">
                                 {res.description}
                             </p>
                         </a>
