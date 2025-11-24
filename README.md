@@ -1,4 +1,4 @@
-# Proto Crypto Catcher
+# Crypto Catcher
 
 Educational game to learn Solidity.
 
@@ -17,3 +17,6 @@ Educational game to learn Solidity.
 ## Structure
 - `src/`: Frontend (React + Vite)
 - `contracts/`: Smart Contracts (Foundry)
+
+### Demo
+https://crypto-catcher-sol.vercel.app/
